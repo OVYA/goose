@@ -10,16 +10,16 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 	"text/template"
 	"time"
 )
 
 var (
-	ErrTableDoesNotExist = errors.New("table does not exist")
-	ErrNoPreviousVersion = errors.New("no previous version found")
+	ErrTableDoesNotExist = errors.New("Table does not exist.")
+	ErrNoPreviousVersion = errors.New("No previous version found.")
 )
 
 type MigrationRecord struct {
@@ -86,7 +86,7 @@ func RunMigrations(conf *DBConf, migrationsDir string, target int64) (err error)
 		}
 
 		if err != nil {
-			return errors.New(fmt.Sprintf("FAIL %v, quitting migration", err))
+			return errors.New(fmt.Sprintf("FAIL %v, quitting migration.", err))
 		}
 
 		fmt.Println("OK   ", filepath.Base(m.Source))
@@ -167,17 +167,17 @@ func NumericComponent(name string) (int64, error) {
 	base := filepath.Base(name)
 
 	if ext := filepath.Ext(base); ext != ".go" && ext != ".sql" {
-		return 0, errors.New("not a recognized migration file type")
+		return 0, errors.New("Not a recognized migration file type.")
 	}
 
-	idx := strings.Index(base, "_")
-	if idx < 0 {
-		return 0, errors.New("no separator found")
+	vnum := regexp.MustCompile("^[0-9]+").FindString(base)
+	if vnum == "" {
+		return 0, errors.New("No version number found.")
 	}
 
-	n, e := strconv.ParseInt(base[:idx], 10, 64)
+	n, e := strconv.ParseInt(vnum, 10, 64)
 	if e == nil && n <= 0 {
-		return 0, errors.New("migration IDs must be greater than zero")
+		return 0, errors.New("Migration IDs must be greater than zero.")
 	}
 
 	return n, e
@@ -334,7 +334,7 @@ func GetMostRecentDBVersion(dirpath string) (version int64, err error) {
 	})
 
 	if version == -1 {
-		err = errors.New("no valid version found")
+		err = errors.New("No valid version found.")
 	}
 
 	return
@@ -343,11 +343,14 @@ func GetMostRecentDBVersion(dirpath string) (version int64, err error) {
 func CreateMigration(name, migrationType, dir string, t time.Time) (path string, err error) {
 
 	if migrationType != "go" && migrationType != "sql" {
-		return "", errors.New("migration type must be 'go' or 'sql'")
+		return "", errors.New("Migration type must be 'go' or 'sql'.")
 	}
 
 	timestamp := t.Format("20060102150405")
-	filename := fmt.Sprintf("%v_%v.%v", timestamp, name, migrationType)
+	if name != "" {
+		name = "_" + name
+	}
+	filename := fmt.Sprintf("%v%v.%v", timestamp, name, migrationType)
 
 	fpath := filepath.Join(dir, filename)
 
