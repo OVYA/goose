@@ -46,7 +46,7 @@ func newMigration(v int64, src string) *Migration {
 	return &Migration{v, -1, -1, src}
 }
 
-func RunMigrations(conf *DBConf, migrationsDir string, target int64) (err error) {
+func RunMigrations(conf *DBConf, migrationsDir string, target int64, verbose bool) (err error) {
 
 	db, err := OpenDBFromDBConf(conf)
 	if err != nil {
@@ -82,7 +82,7 @@ func RunMigrations(conf *DBConf, migrationsDir string, target int64) (err error)
 		case ".go":
 			err = runGoMigration(conf, m.Source, m.Version, direction)
 		case ".sql":
-			err = runSQLMigration(conf, db, m.Source, m.Version, direction)
+			err = runSQLMigration(conf, db, m.Source, m.Version, direction, verbose)
 		}
 
 		if err != nil {

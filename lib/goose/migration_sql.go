@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"database/sql"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -131,7 +132,7 @@ func splitSQLStatements(r io.Reader, direction bool) (stmts []string) {
 //
 // All statements following an Up or Down directive are grouped together
 // until another direction directive is found.
-func runSQLMigration(conf *DBConf, db *sql.DB, scriptFile string, v int64, direction bool) error {
+func runSQLMigration(conf *DBConf, db *sql.DB, scriptFile string, v int64, direction, verbose bool) error {
 
 	txn, err := db.Begin()
 	if err != nil {
@@ -149,6 +150,10 @@ func runSQLMigration(conf *DBConf, db *sql.DB, scriptFile string, v int64, direc
 	// records the version into the version table or returns an error and
 	// rolls back the transaction.
 	for _, query := range splitSQLStatements(f, direction) {
+		if verbose {
+			fmt.Println("Executing SQL query : \n", strings.TrimSpace(query), "\n")
+		}
+
 		if _, err = txn.Exec(query); err != nil {
 			txn.Rollback()
 			log.Fatalf("FAIL %s (%v), quitting migration.", filepath.Base(scriptFile), err)
