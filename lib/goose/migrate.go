@@ -95,7 +95,7 @@ func RunMigrations(conf *DBConf, migrationsDir string, target int64, verbose boo
 	return nil
 }
 
-// collect all the valid looking migration scripts in the
+// CollectMigrations collects all the valid looking migration scripts in the
 // migrations folder, and key them by version
 func CollectMigrations(dirpath string, current, target int64) (m []*Migration, err error) {
 
@@ -183,10 +183,35 @@ func NumericComponent(name string) (int64, error) {
 	return n, e
 }
 
-// retrieve the current version for this DB.
+func RetrieveMigrationRecords(conf *DBConf, db *sql.DB) ([]MigrationRecord, error) {
+	var migrationRecords []MigrationRecord
+
+	rows, err := conf.Driver.Dialect.dbVersionQuery(db)
+	if err != nil {
+		if err == ErrTableDoesNotExist {
+			return migrationRecords, createVersionTable(conf, db)
+		}
+
+		return migrationRecords, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var row MigrationRecord
+		if err = rows.Scan(&row.VersionId, &row.IsApplied); err != nil {
+			log.Fatal("error scanning rows :", err)
+		}
+
+		migrationRecords = append(migrationRecords, row)
+	}
+
+	return migrationRecords, err
+}
+
+// EnsureDBVersion retrieves the current version for this DB.
 // Create and initialize the DB version table if it doesn't exist.
 func EnsureDBVersion(conf *DBConf, db *sql.DB) (int64, error) {
-
 	rows, err := conf.Driver.Dialect.dbVersionQuery(db)
 	if err != nil {
 		if err == ErrTableDoesNotExist {
@@ -230,7 +255,7 @@ func EnsureDBVersion(conf *DBConf, db *sql.DB) (int64, error) {
 		toSkip = append(toSkip, row.VersionId)
 	}
 
-	panic("failure in EnsureDBVersion()")
+	panic("Failure in EnsureDBVersion()")
 }
 
 // Create the goose_db_version table
@@ -258,10 +283,9 @@ func createVersionTable(conf *DBConf, db *sql.DB) error {
 	return txn.Commit()
 }
 
-// wrapper for EnsureDBVersion for callers that don't already have
+// GetDBVersion is a wrapper for EnsureDBVersion for callers that don't already have
 // their own DB instance
 func GetDBVersion(conf *DBConf) (version int64, err error) {
-
 	db, err := OpenDBFromDBConf(conf)
 	if err != nil {
 		return -1, err
@@ -277,7 +301,6 @@ func GetDBVersion(conf *DBConf) (version int64, err error) {
 }
 
 func GetPreviousDBVersion(dirpath string, version int64) (previous int64, err error) {
-
 	previous = -1
 	sawGivenVersion := false
 
@@ -366,11 +389,9 @@ func CreateMigration(name, migrationType, dir string, t time.Time) (path string,
 	return
 }
 
-// Update the version table for the given migration,
+// FinalizeMigration updates the version table for the given migration,
 // and finalize the transaction.
 func FinalizeMigration(conf *DBConf, txn *sql.Tx, direction bool, v int64) error {
-
-	// XXX: drop goose_db_version table on some minimum version number?
 	stmt := conf.Driver.Dialect.insertVersionSql()
 	if _, err := txn.Exec(stmt, v, direction); err != nil {
 		txn.Rollback()
@@ -380,8 +401,7 @@ func FinalizeMigration(conf *DBConf, txn *sql.Tx, direction bool, v int64) error
 	return txn.Commit()
 }
 
-var goMigrationTemplate = template.Must(template.New("goose.go-migration").Parse(`
-package main
+var goMigrationTemplate = template.Must(template.New("goose.go-migration").Parse(`package main
 
 import (
 	"database/sql"
@@ -398,12 +418,10 @@ func Down_{{ . }}(txn *sql.Tx) {
 }
 `))
 
-var sqlMigrationTemplate = template.Must(template.New("goose.sql-migration").Parse(`
--- +goose Up
+var sqlMigrationTemplate = template.Must(template.New("goose.sql-migration").Parse(`-- +goose Up
 -- SQL in section 'Up' is executed when this migration is applied
 
 
 -- +goose Down
 -- SQL section 'Down' is executed when this migration is rolled back
-
 `))
