@@ -55,11 +55,6 @@ func RunMigrations(conf *DBConf, migrationsDir string, target int64, verbose boo
 	}
 	defer db.Close()
 
-	return RunMigrationsOnDb(conf, migrationsDir, target, db)
-}
-
-// Runs migration on a specific database instance.
-func RunMigrationsOnDb(conf *DBConf, migrationsDir string, target int64, db *sql.DB) (err error) {
 	current, err := EnsureDBVersion(conf, db)
 	if err != nil {
 		return err
