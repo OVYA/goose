@@ -4,9 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
-	_ "github.com/ziutek/mymysql/godrv"
 	"log"
 	"os"
 	"path/filepath"
@@ -15,6 +12,10 @@ import (
 	"strconv"
 	"text/template"
 	"time"
+
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/ziutek/mymysql/godrv"
 )
 
 var (
@@ -46,7 +47,7 @@ func newMigration(v int64, src string) *Migration {
 	return &Migration{v, -1, -1, src}
 }
 
-func RunMigrations(conf *DBConf, migrationsDir string, target int64, verbose bool) (err error) {
+func RunMigrations(conf *DBConf, migrationsDir string, target int64, verbose bool, forceMigrations []string) (err error) {
 
 	db, err := OpenDBFromDBConf(conf)
 	if err != nil {
@@ -59,7 +60,7 @@ func RunMigrations(conf *DBConf, migrationsDir string, target int64, verbose boo
 		return err
 	}
 
-	migrations, err := CollectMigrations(migrationsDir, current, target)
+	migrations, err := CollectMigrations(migrationsDir, current, target, forceMigrations)
 	if err != nil {
 		return err
 	}
@@ -97,7 +98,17 @@ func RunMigrations(conf *DBConf, migrationsDir string, target int64, verbose boo
 
 // CollectMigrations collects all the valid looking migration scripts in the
 // migrations folder, and key them by version
-func CollectMigrations(dirpath string, current, target int64) (m []*Migration, err error) {
+func CollectMigrations(dirpath string, current, target int64, forceMigrations []string) (m []*Migration, err error) {
+
+	var forceVersions []int64
+
+	for _, fm := range forceMigrations {
+		if v, e := NumericComponent(fm); e == nil {
+			forceVersions = append(forceVersions, v)
+		} else {
+			fmt.Printf("\033[0;31mInvalid forced migration '%s' will be ignored\033[0m\n", fm)
+		}
+	}
 
 	// extract the numeric component of each migration,
 	// filter out any uninteresting files,
@@ -113,7 +124,7 @@ func CollectMigrations(dirpath string, current, target int64) (m []*Migration, e
 				}
 			}
 
-			if versionFilter(v, current, target) {
+			if versionFilter(v, current, target, forceVersions) {
 				m = append(m, newMigration(v, name))
 			}
 		}
@@ -124,7 +135,11 @@ func CollectMigrations(dirpath string, current, target int64) (m []*Migration, e
 	return m, nil
 }
 
-func versionFilter(v, current, target int64) bool {
+func versionFilter(v, current, target int64, forceVersions []int64) bool {
+
+	if IndexOf(forceVersions, v) != -1 {
+		return true
+	}
 
 	if target > current {
 		return v > current && v <= target
@@ -135,6 +150,15 @@ func versionFilter(v, current, target int64) bool {
 	}
 
 	return false
+}
+
+func IndexOf(array []int64, searchedValue int64) int {
+	for i := 0; i < len(array); i++ {
+		if array[i] == searchedValue {
+			return i
+		}
+	}
+	return -1
 }
 
 func (ms migrationSorter) Sort(direction bool) {
