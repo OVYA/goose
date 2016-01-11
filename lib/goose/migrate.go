@@ -71,7 +71,7 @@ func RunMigrations(conf *DBConf, migrationsDir string, target int64, verbose boo
 	}
 
 	ms := migrationSorter(migrations)
-	direction := current < target
+	direction := current <= target
 	ms.Sort(direction)
 
 	fmt.Printf("goose: migrating db environment '%v', current version: %d, target: %d\n",
@@ -105,7 +105,7 @@ func CollectMigrations(dirpath string, current, target int64, forceMigrations []
 	for _, fm := range forceMigrations {
 		if v, e := NumericComponent(fm); e == nil {
 			forceVersions = append(forceVersions, v)
-		} else {
+		} else if fm != "" {
 			fmt.Printf("\033[0;31mInvalid forced migration '%s' will be ignored\033[0m\n", fm)
 		}
 	}
@@ -125,6 +125,7 @@ func CollectMigrations(dirpath string, current, target int64, forceMigrations []
 			}
 
 			if versionFilter(v, current, target, forceVersions) {
+
 				m = append(m, newMigration(v, name))
 			}
 		}
@@ -136,7 +137,6 @@ func CollectMigrations(dirpath string, current, target int64, forceMigrations []
 }
 
 func versionFilter(v, current, target int64, forceVersions []int64) bool {
-
 	if IndexOf(forceVersions, v) != -1 {
 		return true
 	}
