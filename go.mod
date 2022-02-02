@@ -1,4 +1,4 @@
-module ovya.fr/goose
+module github.com/OVYA/goose
 
 go 1.17
 
