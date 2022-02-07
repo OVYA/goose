@@ -155,7 +155,7 @@ func runSQLMigration(conf *DBConf, db *sql.DB, scriptFile string, v int64, direc
 	// rolls back the transaction.
 	for _, query := range splitSQLStatements(f, direction) {
 		if verbose {
-			fmt.Println("Executing SQL query : \n", strings.TrimSpace(query), "\n")
+			fmt.Println("Executing SQL query :", strings.TrimSpace(query))
 		}
 
 		if _, err = txn.Exec(query); err != nil {

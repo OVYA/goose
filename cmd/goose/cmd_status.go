@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bitbucket.org/liamstask/goose/lib/goose"
 	"database/sql"
 	"fmt"
+	"github.com/OVYA/goose"
 	"log"
 	"path/filepath"
 	"time"

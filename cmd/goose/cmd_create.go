@@ -1,7 +1,8 @@
 package main
 
 import (
-	"bitbucket.org/liamstask/goose/lib/goose"
+	"github.com/OVYA/goose"
+
 	"fmt"
 	"log"
 	"os"
